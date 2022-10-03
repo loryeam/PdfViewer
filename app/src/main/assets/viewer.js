@@ -16,6 +16,8 @@ let newPageNumber = 0;
 let newZoomRatio = 1;
 let useRender;
 
+let lastPageNumber = 0;
+
 const cache = [];
 const maxCached = 6;
 
@@ -50,18 +52,32 @@ function doPrerender(pageNumber, prerenderTrigger) {
     }
 }
 
-function display(newCanvas, zoom) {
+function display(newCanvas, zoom, xScroll = 0, yScroll = 0) {
     canvas.height = newCanvas.height;
     canvas.width = newCanvas.width;
     canvas.style.height = newCanvas.style.height;
     canvas.style.width = newCanvas.style.width;
     canvas.getContext("2d", { alpha: false }).drawImage(newCanvas, 0, 0);
     if (!zoom) {
-        scrollTo(0, 0);
+        scrollTo(xScroll, yScroll);
     }
 }
 
 function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
+    if (!prerender) {
+        // Save scroll state of last page to the most recent cache.
+        for (let i = cache.length - 1; i >= 0; i--) {
+            if (cache[i].pageNumber === lastPageNumber) {
+                console.log(`saving scroll x: ${scrollX}, y: ${scrollY} for page number ${lastPageNumber}`);
+                cache[i].xScroll = scrollX;
+                cache[i].yScroll = scrollY;
+                break;
+            }
+        }
+
+        lastPageNumber = pageNumber;
+    }
+
     pageRendering = true;
     useRender = !prerender;
 
@@ -78,7 +94,7 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
                 cache.splice(i, 1);
                 cache.push(cached);
 
-                display(cached.canvas, zoom);
+                display(cached.canvas, zoom, cached.xScroll, cached.yScroll);
 
                 textLayerDiv.replaceWith(cached.textLayerDiv);
                 textLayerDiv = cached.textLayerDiv;
@@ -164,6 +180,8 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
                     pageNumber: pageNumber,
                     zoomRatio: newZoomRatio,
                     orientationDegrees: orientationDegrees,
+                    xScroll: 0,
+                    yScroll: 0,
                     canvas: newCanvas,
                     textLayerDiv: newTextLayerDiv
                 });
