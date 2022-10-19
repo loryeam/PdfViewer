@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -123,6 +124,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     private String mEncryptedDocumentPassword;
     private List<CharSequence> mDocumentProperties;
     private InputStream mInputStream;
+    private int mQuality = 1;
 
     private PdfviewerBinding binding;
     private TextView mTextView;
@@ -217,6 +219,11 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         public String getPassword() {
             return mEncryptedDocumentPassword != null ? mEncryptedDocumentPassword : "";
         }
+
+        @JavascriptInterface
+        public int getQuality() {
+            return mQuality;
+        }
     }
 
     @Override
@@ -252,6 +259,9 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         settings.setAllowFileAccess(false);
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         settings.setJavaScriptEnabled(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setSupportZoom(true);
+        settings.setDisplayZoomControls(false);
 
         CookieManager.getInstance().setAcceptCookie(false);
 
@@ -323,42 +333,50 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
                 invalidateOptionsMenu();
                 loadPdfWithPassword(mEncryptedDocumentPassword);
             }
+
+            @Override
+            public void onScaleChanged(WebView view, float oldScale, float newScale) {
+                super.onScaleChanged(view, oldScale, newScale);
+                mQuality = (int) Math.ceil(newScale / 2.75 * 10);
+                Log.d(TAG, "newScale: " + newScale + ", oldScale: " + oldScale + ", quality: " + mQuality);
+                scheduleRenderPage(50,  0);
+            }
         });
 
-        GestureHelper.attach(PdfViewer.this, binding.webview,
-                new GestureHelper.GestureListener() {
-                    @Override
-                    public boolean onTapUp() {
-                        if (mUri != null) {
-                            binding.webview.evaluateJavascript("isTextSelected()", selection -> {
-                                if (!Boolean.parseBoolean(selection)) {
-                                    if (getSupportActionBar().isShowing()) {
-                                        hideSystemUi();
-                                    } else {
-                                        showSystemUi();
-                                    }
-                                }
-                            });
-                            return true;
-                        }
-                        return false;
-                    }
-
-                    @Override
-                    public void onZoomIn(float value) {
-                        zoomIn(value, false);
-                    }
-
-                    @Override
-                    public void onZoomOut(float value) {
-                        zoomOut(value, false);
-                    }
-
-                    @Override
-                    public void onZoomEnd() {
-                        zoomEnd();
-                    }
-                });
+//        GestureHelper.attach(PdfViewer.this, binding.webview,
+//                new GestureHelper.GestureListener() {
+//                    @Override
+//                    public boolean onTapUp() {
+//                        if (mUri != null) {
+//                            binding.webview.evaluateJavascript("isTextSelected()", selection -> {
+//                                if (!Boolean.parseBoolean(selection)) {
+//                                    if (getSupportActionBar().isShowing()) {
+//                                        hideSystemUi();
+//                                    } else {
+//                                        showSystemUi();
+//                                    }
+//                                }
+//                            });
+//                            return true;
+//                        }
+//                        return false;
+//                    }
+//
+//                    @Override
+//                    public void onZoomIn(float value) {
+//                        zoomIn(value, false);
+//                    }
+//
+//                    @Override
+//                    public void onZoomOut(float value) {
+//                        zoomOut(value, false);
+//                    }
+//
+//                    @Override
+//                    public void onZoomEnd() {
+//                        zoomEnd();
+//                    }
+//                });
 
         mTextView = new TextView(this);
         mTextView.setBackgroundColor(Color.DKGRAY);
@@ -712,5 +730,18 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         } catch (IOException | OutOfMemoryError | IllegalArgumentException e) {
             snackbar.setText(R.string.error_while_saving).show();
         }
+    }
+
+    private void scheduleRenderPage(long millis, int zoom) {
+        AsyncTask.execute(() -> {
+            try {
+                Thread.sleep(millis);
+                runOnUiThread(() -> {
+                    renderPage(zoom);
+                });
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
     }
 }

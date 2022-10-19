@@ -11,6 +11,7 @@ let orientationDegrees = 0;
 let zoomRatio = 1;
 let textLayerDiv = document.getElementById("text");
 let task = null;
+let quality = 1;
 
 let newPageNumber = 0;
 let newZoomRatio = 1;
@@ -59,7 +60,7 @@ function display(newCanvas, zoom, xScroll = 0, yScroll = 0) {
     canvas.style.width = newCanvas.style.width;
     canvas.getContext("2d", { alpha: false }).drawImage(newCanvas, 0, 0);
     if (!zoom) {
-        scrollTo(xScroll, yScroll);
+        scrollTo(0, 0);
     }
 }
 
@@ -84,12 +85,13 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
     newPageNumber = pageNumber;
     newZoomRatio = channel.getZoomRatio();
     orientationDegrees = channel.getDocumentOrientationDegrees();
+    quality = channel.getQuality();
     console.log("page: " + pageNumber + ", zoom: " + newZoomRatio +
-                ", orientationDegrees: " + orientationDegrees + ", prerender: " + prerender);
+                ", orientationDegrees: " + orientationDegrees + ", prerender: " + prerender + ", quality: " + quality);
     for (let i = 0; i < cache.length; i++) {
         const cached = cache[i];
         if (cached.pageNumber === pageNumber && cached.zoomRatio === newZoomRatio &&
-                cached.orientationDegrees === orientationDegrees) {
+                cached.orientationDegrees === orientationDegrees && cached.quality === quality) {
             if (useRender) {
                 cache.splice(i, 1);
                 cache.push(cached);
@@ -128,8 +130,9 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
 
         const newCanvas = document.createElement("canvas");
         const ratio = window.devicePixelRatio;
-        newCanvas.height = viewport.height * ratio;
-        newCanvas.width = viewport.width * ratio;
+        const resolution = Math.max(quality / 10, 1);
+        newCanvas.height = viewport.height * ratio * resolution;
+        newCanvas.width = viewport.width * ratio * resolution;
         newCanvas.style.height = viewport.height + "px";
         newCanvas.style.width = viewport.width + "px";
         const newContext = newCanvas.getContext("2d", { alpha: false });
@@ -137,7 +140,8 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
 
         task = page.render({
             canvasContext: newContext,
-            viewport: viewport
+            viewport: viewport,
+            transform: [resolution, 0, 0, resolution, 0, 0]
         });
 
         task.promise.then(function() {
@@ -182,6 +186,7 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
                     orientationDegrees: orientationDegrees,
                     xScroll: 0,
                     yScroll: 0,
+                    quality: quality,
                     canvas: newCanvas,
                     textLayerDiv: newTextLayerDiv
                 });
