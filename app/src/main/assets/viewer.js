@@ -95,7 +95,7 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
             return;
         }
 
-        const viewport = page.getViewport({scale: newZoomRatio, rotation: orientationDegrees})
+        const viewport = page.getViewport({scale: 1, rotation: orientationDegrees});
 
         if (useRender) {
             if (newZoomRatio !== zoomRatio) {
@@ -112,8 +112,8 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
 
         const newCanvas = document.createElement("canvas");
         const ratio = window.devicePixelRatio;
-        newCanvas.height = viewport.height * ratio;
-        newCanvas.width = viewport.width * ratio;
+        newCanvas.height = viewport.height * ratio * newZoomRatio;
+        newCanvas.width = viewport.width * ratio * newZoomRatio;
         newCanvas.style.height = viewport.height + "px";
         newCanvas.style.width = viewport.width + "px";
         const newContext = newCanvas.getContext("2d", { alpha: false });
@@ -121,7 +121,8 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
 
         task = page.render({
             canvasContext: newContext,
-            viewport: viewport
+            viewport: viewport,
+            transform: [newZoomRatio, 0, 0, newZoomRatio, 0, 0]
         });
 
         task.promise.then(function() {
