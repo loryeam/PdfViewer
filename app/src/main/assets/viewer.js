@@ -209,6 +209,10 @@ function isTextSelected() {
     return window.getSelection().toString() !== "";
 }
 
+function onScale(newScale) {
+    container.style.scale = newScale.toString();
+}
+
 function loadDocument() {
     const pdfPassword = channel.getPassword();
     const loadingTask = pdfjsLib.getDocument({ url: "https://localhost/placeholder.pdf", password: pdfPassword });

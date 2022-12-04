@@ -531,6 +531,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         float newZoomRatio = RangesKt.coerceIn(mZoomRatio + value, MIN_ZOOM_RATIO, MAX_ZOOM_RATIO);
         if (newZoomRatio != mZoomRatio) {
             mZoomRatio = newZoomRatio;
+            binding.webview.evaluateJavascript("onScale(" + mZoomRatio + ")", null);
             renderPage(end ? 1 : 2);
             invalidateOptionsMenu();
         }
