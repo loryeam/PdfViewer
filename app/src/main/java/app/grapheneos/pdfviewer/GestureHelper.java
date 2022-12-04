@@ -15,8 +15,7 @@ class GestureHelper {
     public interface GestureListener {
         boolean onTapUp();
         // Can be replaced with ratio when supported
-        void onZoomIn(float value);
-        void onZoomOut(float value);
+        void onZoom(float value);
         void onZoomEnd();
     }
 
@@ -50,11 +49,7 @@ class GestureHelper {
                         float curNbStep = spanDiff / SPAN_RATIO;
 
                         float stepDiff = curNbStep - prevNbStep;
-                        if (stepDiff > 0) {
-                            listener.onZoomOut(stepDiff);
-                        } else {
-                            listener.onZoomIn(Math.abs(stepDiff));
-                        }
+                        listener.onZoom(-stepDiff);
                         prevNbStep = curNbStep;
 
                         return true;

@@ -54,6 +54,8 @@ import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.List;
 
+import kotlin.ranges.RangesKt;
+
 public class PdfViewer extends AppCompatActivity implements LoaderManager.LoaderCallbacks<List<CharSequence>> {
     public static final String TAG = "PdfViewer";
 
@@ -346,13 +348,8 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
                     }
 
                     @Override
-                    public void onZoomIn(float value) {
-                        zoomIn(value, false);
-                    }
-
-                    @Override
-                    public void onZoomOut(float value) {
-                        zoomOut(value, false);
+                    public void onZoom(float value) {
+                        zoom(value, false);
                     }
 
                     @Override
@@ -530,17 +527,10 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         }
     }
 
-    private void zoomIn(float value, boolean end) {
-        if (mZoomRatio < MAX_ZOOM_RATIO) {
-            mZoomRatio = Math.min(mZoomRatio + value, MAX_ZOOM_RATIO);
-            renderPage(end ? 1 : 2);
-            invalidateOptionsMenu();
-        }
-    }
-
-    private void zoomOut(float value, boolean end) {
-        if (mZoomRatio > MIN_ZOOM_RATIO) {
-            mZoomRatio = Math.max(mZoomRatio - value, MIN_ZOOM_RATIO);
+    private void zoom(float value, boolean end) {
+        float newZoomRatio = RangesKt.coerceIn(mZoomRatio + value, MIN_ZOOM_RATIO, MAX_ZOOM_RATIO);
+        if (newZoomRatio != mZoomRatio) {
+            mZoomRatio = newZoomRatio;
             renderPage(end ? 1 : 2);
             invalidateOptionsMenu();
         }
