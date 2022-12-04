@@ -110,6 +110,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
 
     private static final float MIN_ZOOM_RATIO = 1f;
     private static final float MAX_ZOOM_RATIO = 1.5f;
+    private static final float MAX_RESOLUTION = 1.5f;
     private static final int ALPHA_LOW = 130;
     private static final int ALPHA_HIGH = 255;
     private static final int STATE_LOADED = 1;
@@ -218,6 +219,11 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         @JavascriptInterface
         public String getPassword() {
             return mEncryptedDocumentPassword != null ? mEncryptedDocumentPassword : "";
+        }
+
+        @JavascriptInterface
+        public float getMaxResolution() {
+            return MAX_RESOLUTION;
         }
     }
 

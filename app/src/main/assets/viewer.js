@@ -122,8 +122,10 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
 
         const newCanvas = document.createElement("canvas");
         const ratio = window.devicePixelRatio;
-        newCanvas.height = viewport.height * ratio * newZoomRatio;
-        newCanvas.width = viewport.width * ratio * newZoomRatio;
+        const maxResolution = channel.getMaxResolution() / viewportScale;
+        const resolution = Math.min(newZoomRatio, maxResolution);
+        newCanvas.height = viewport.height * ratio * resolution;
+        newCanvas.width = viewport.width * ratio * resolution;
         newCanvas.style.height = viewport.height + "px";
         newCanvas.style.width = viewport.width + "px";
         const newContext = newCanvas.getContext("2d", { alpha: false });
@@ -132,7 +134,7 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
         task = page.render({
             canvasContext: newContext,
             viewport: viewport,
-            transform: [newZoomRatio, 0, 0, newZoomRatio, 0, 0]
+            transform: [resolution, 0, 0, resolution, 0, 0]
         });
 
         task.promise.then(function() {
