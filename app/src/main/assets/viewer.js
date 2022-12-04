@@ -7,6 +7,7 @@ let pageRendering = false;
 let renderPending = false;
 let renderPendingZoom = 0;
 const canvas = document.getElementById('content');
+const container = document.getElementById("container");
 let orientationDegrees = 0;
 let zoomRatio = 1;
 let textLayerDiv = document.getElementById("text");
@@ -95,7 +96,16 @@ function renderPage(pageNumber, zoom, prerender, prerenderTrigger=0) {
             return;
         }
 
-        const viewport = page.getViewport({scale: 1, rotation: orientationDegrees});
+        let viewportScale = 1;
+        let viewport = page.getViewport({scale: viewportScale, rotation: orientationDegrees});
+        let viewportRatio = viewport.width / viewport.height;
+        let containerRatio = container.offsetWidth / container.offsetHeight;
+        if (viewportRatio > containerRatio) {
+            viewportScale = container.offsetWidth / viewport.width;
+        } else {
+            viewportScale = container.offsetHeight / viewport.height;
+        }
+        viewport = page.getViewport({scale: viewportScale, rotation: orientationDegrees});
 
         if (useRender) {
             if (newZoomRatio !== zoomRatio) {
