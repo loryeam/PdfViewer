@@ -60,7 +60,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     private static final String STATE_URI = "uri";
     private static final String STATE_PAGE = "page";
     private static final String STATE_ZOOM_RATIO = "zoomRatio";
-    private static final String STATE_DOCUMENT_ORIENTATION_DEGREES = "documentOrientationDegrees";
+    private static final String STATE_DOCUMENT_ROTATION_DEGREES = "documentRotationDegrees";
     private static final String STATE_ENCRYPTED_DOCUMENT_PASSWORD = "encrypted_document_password";
     private static final String KEY_PROPERTIES = "properties";
     private static final int MIN_WEBVIEW_RELEASE = 89;
@@ -118,7 +118,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     public int mPage;
     public int mNumPages;
     private float mZoomRatio = 1f;
-    private int mDocumentOrientationDegrees;
+    private int mDocumentRotationDegrees;
     private int mDocumentState;
     private String mEncryptedDocumentPassword;
     private List<CharSequence> mDocumentProperties;
@@ -130,6 +130,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     private Snackbar snackbar;
     private PasswordPromptFragment mPasswordPromptFragment;
     public PasswordStatus passwordValidationViewModel;
+    private boolean mViewerInitialized = false;
 
     private final ActivityResultLauncher<Intent> openDocumentLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -161,8 +162,24 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
 
     private class Channel {
         @JavascriptInterface
-        public int getPage() {
+        public int getPageNumber() {
             return mPage;
+        }
+
+        @JavascriptInterface
+        public void setPageNumber(int pageNumber) {
+            if (mPage != pageNumber && pageNumber >= 1 && pageNumber <= mNumPages) {
+                mPage = pageNumber;
+                runOnUiThread(() -> {
+                    showPageNumber();
+                    invalidateOptionsMenu();
+                });
+            }
+        }
+
+        @JavascriptInterface
+        public void onViewerInitialized() {
+            mViewerInitialized = true;
         }
 
         @JavascriptInterface
@@ -171,8 +188,8 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         }
 
         @JavascriptInterface
-        public int getDocumentOrientationDegrees() {
-            return mDocumentOrientationDegrees;
+        public int getDocumentRotationDegrees() {
+            return mDocumentRotationDegrees;
         }
 
         @JavascriptInterface
@@ -302,11 +319,12 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
                     return response;
                 }
 
-                if ("/viewer.css".equals(path)) {
+                if ("/viewer.css".equals(path) || "/pdf_viewer.css".equals(path)) {
                     return fromAsset("text/css", path);
                 }
 
-                if ("/viewer.js".equals(path) || "/pdf.js".equals(path) || "/pdf.worker.js".equals(path)) {
+                if ("/viewer.js".equals(path) || "/pdf.js".equals(path) || "/pdf.worker.js".equals(path)
+                        || "/pdf_viewer.js".equals(path)) {
                     return fromAsset("application/javascript", path);
                 }
 
@@ -394,7 +412,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
             }
             mPage = savedInstanceState.getInt(STATE_PAGE);
             mZoomRatio = savedInstanceState.getFloat(STATE_ZOOM_RATIO);
-            mDocumentOrientationDegrees = savedInstanceState.getInt(STATE_DOCUMENT_ORIENTATION_DEGREES);
+            mDocumentRotationDegrees = savedInstanceState.getInt(STATE_DOCUMENT_ROTATION_DEGREES);
             mEncryptedDocumentPassword = savedInstanceState.getString(STATE_ENCRYPTED_DOCUMENT_PASSWORD);
         }
 
@@ -511,16 +529,12 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         binding.webview.evaluateJavascript("loadDocument()", null);
     }
 
-    private void renderPage(final int zoom) {
-        binding.webview.evaluateJavascript("onRenderPage(" + zoom + ")", null);
-    }
-
-    private void documentOrientationChanged(final int orientationDegreesOffset) {
-        mDocumentOrientationDegrees = (mDocumentOrientationDegrees + orientationDegreesOffset) % 360;
-        if (mDocumentOrientationDegrees < 0) {
-            mDocumentOrientationDegrees += 360;
+    private void documentRotationChanged(final int rotationDegreesOffset) {
+        mDocumentRotationDegrees = (mDocumentRotationDegrees + rotationDegreesOffset) % 360;
+        if (mDocumentRotationDegrees < 0) {
+            mDocumentRotationDegrees += 360;
         }
-        renderPage(0);
+        dispatchEvent("document_rotation_changed");
     }
 
     private void openDocument() {
@@ -545,7 +559,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     private void zoomIn(float value, boolean end) {
         if (mZoomRatio < MAX_ZOOM_RATIO) {
             mZoomRatio = Math.min(mZoomRatio + value, MAX_ZOOM_RATIO);
-            renderPage(end ? 1 : 2);
+            dispatchEvent("zoom_in");
             invalidateOptionsMenu();
         }
     }
@@ -553,13 +567,13 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     private void zoomOut(float value, boolean end) {
         if (mZoomRatio > MIN_ZOOM_RATIO) {
             mZoomRatio = Math.max(mZoomRatio - value, MIN_ZOOM_RATIO);
-            renderPage(end ? 1 : 2);
+            dispatchEvent("zoom_out");
             invalidateOptionsMenu();
         }
     }
 
     private void zoomEnd() {
-        renderPage(1);
+        dispatchEvent("zoom_end");
     }
 
     private static void enableDisableMenuItem(MenuItem item, boolean enable) {
@@ -575,7 +589,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     public void onJumpToPageInDocument(final int selected_page) {
         if (selected_page >= 1 && selected_page <= mNumPages && mPage != selected_page) {
             mPage = selected_page;
-            renderPage(0);
+            dispatchEvent("page_number_changed");
             showPageNumber();
             invalidateOptionsMenu();
         }
@@ -597,7 +611,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         savedInstanceState.putParcelable(STATE_URI, mUri);
         savedInstanceState.putInt(STATE_PAGE, mPage);
         savedInstanceState.putFloat(STATE_ZOOM_RATIO, mZoomRatio);
-        savedInstanceState.putInt(STATE_DOCUMENT_ORIENTATION_DEGREES, mDocumentOrientationDegrees);
+        savedInstanceState.putInt(STATE_DOCUMENT_ROTATION_DEGREES, mDocumentRotationDegrees);
         savedInstanceState.putString(STATE_ENCRYPTED_DOCUMENT_PASSWORD, mEncryptedDocumentPassword);
     }
 
@@ -672,10 +686,10 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
             openDocument();
             return true;
         } else if (itemId == R.id.action_rotate_clockwise) {
-            documentOrientationChanged(90);
+            documentRotationChanged(90);
             return true;
         } else if (itemId == R.id.action_rotate_counterclockwise) {
-            documentOrientationChanged(-90);
+            documentRotationChanged(-90);
             return true;
         } else if (itemId == R.id.action_view_document_properties) {
             DocumentPropertiesFragment
@@ -725,5 +739,13 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         } catch (IOException | OutOfMemoryError | IllegalArgumentException e) {
             snackbar.setText(R.string.error_while_saving).show();
         }
+    }
+
+    private void dispatchEvent(@NonNull String eventName) {
+        if (!mViewerInitialized) {
+            return;
+        }
+        eventName = "app_" + eventName;
+        binding.webview.evaluateJavascript("eventBus.dispatch(\"" + eventName + "\")", null);
     }
 }
