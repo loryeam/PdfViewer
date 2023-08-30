@@ -16,6 +16,7 @@ async function processStatic() {
     const outDir = "app/src/main/assets/viewer";
     const outDirDebug = "app/src/debug/assets/viewer";
 
+    await commandLine(getCommand("node_modules/.bin/tsc"));
     await commandLine(getCommand("node_modules/.bin/eslint"), ".");
 
     await processScripts({
