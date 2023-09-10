@@ -15,19 +15,20 @@ async function processStatic() {
     const rootDir = "viewer";
     const outDir = "app/src/main/assets/viewer";
     const outDirDebug = "app/src/debug/assets/viewer";
+    const entryPoints = ["js/index.ts", "js/worker.ts"];
 
     await commandLine(getCommand("node_modules/.bin/tsc"));
     await commandLine(getCommand("node_modules/.bin/eslint"), ".");
 
     await processScripts({
         rootDir,
-        entryPoints: ["js/index.js", "js/worker.js"],
+        entryPoints,
         outDir,
         production: true,
     });
     await processScripts({
         rootDir,
-        entryPoints: ["js/index.js", "js/worker.js"],
+        entryPoints,
         outDir: outDirDebug,
         production: false,
     });

@@ -4,11 +4,15 @@
 }
 
 .textLayer {
-    text-align: initial;
     position: absolute;
+    text-align: initial;
     overflow: hidden;
     opacity: var(--text-layer-opacity);
     line-height: 1;
+    text-size-adjust: none;
+    forced-color-adjust: none;
+    transform-origin: 0 0;
+    z-index: 2;
 }
 
 .textLayer span,

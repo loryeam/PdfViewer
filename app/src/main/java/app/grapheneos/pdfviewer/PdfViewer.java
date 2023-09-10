@@ -47,6 +47,7 @@ import app.grapheneos.pdfviewer.fragment.JumpToPageFragment;
 import app.grapheneos.pdfviewer.ktx.ViewKt;
 import app.grapheneos.pdfviewer.loader.DocumentPropertiesAsyncTaskLoader;
 import app.grapheneos.pdfviewer.viewModel.PasswordStatus;
+import kotlin.ranges.RangesKt;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -61,8 +62,8 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
 
     private static final String STATE_URI = "uri";
     private static final String STATE_PAGE = "page";
-    private static final String STATE_ZOOM_RATIO = "zoomRatio";
-    private static final String STATE_DOCUMENT_ORIENTATION_DEGREES = "documentOrientationDegrees";
+    private static final String STATE_SCALE = "scale";
+    private static final String STATE_ROTATION = "rotation";
     private static final String STATE_ENCRYPTED_DOCUMENT_PASSWORD = "encrypted_document_password";
     private static final String KEY_PROPERTIES = "properties";
     private static final int MIN_WEBVIEW_RELEASE = 92;
@@ -108,8 +109,8 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         "usb=(), " +
         "xr-spatial-tracking=()";
 
-    private static final float MIN_ZOOM_RATIO = 0.2f;
-    private static final float MAX_ZOOM_RATIO = 1.5f;
+    private static final float MIN_SCALE = 0.2f;
+    private static final float MAX_SCALE = 10f;
     private static final int ALPHA_LOW = 130;
     private static final int ALPHA_HIGH = 255;
     private static final int STATE_LOADED = 1;
@@ -119,8 +120,10 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     private Uri mUri;
     public int mPage;
     public int mNumPages;
-    private float mZoomRatio = 1f;
-    private int mDocumentOrientationDegrees;
+    private float mScale = 0.6f;
+    private float mScaleFocusX = 0f;
+    private float mScaleFocusY = 0f;
+    private int mRotation;
     private int mDocumentState;
     private String mEncryptedDocumentPassword;
     private List<CharSequence> mDocumentProperties;
@@ -168,28 +171,43 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         }
 
         @JavascriptInterface
-        public float getZoomRatio() {
-            return mZoomRatio;
+        public void setPageNumber(int pageNumber) {
+            mPage = pageNumber;
         }
 
         @JavascriptInterface
-        public void setZoomRatio(final float ratio) {
-            mZoomRatio = Math.max(Math.min(ratio, MAX_ZOOM_RATIO), MIN_ZOOM_RATIO);
+        public float getScale() {
+            return mScale;
         }
 
         @JavascriptInterface
-        public float getMinZoomRatio() {
-            return MIN_ZOOM_RATIO;
+        public void setScale(final float ratio) {
+            mScale = Math.max(Math.min(ratio, MAX_SCALE), MIN_SCALE);
         }
 
         @JavascriptInterface
-        public float getMaxZoomRatio() {
-            return MAX_ZOOM_RATIO;
+        public float getMinScale() {
+            return MIN_SCALE;
         }
 
         @JavascriptInterface
-        public int getDocumentOrientationDegrees() {
-            return mDocumentOrientationDegrees;
+        public float getMaxScale() {
+            return MAX_SCALE;
+        }
+
+        @JavascriptInterface
+        public float getScaleFocusX() {
+            return mScaleFocusX;
+        }
+
+        @JavascriptInterface
+        public float getScaleFocusY() {
+            return mScaleFocusY;
+        }
+
+        @JavascriptInterface
+        public int getRotation() {
+            return mRotation;
         }
 
         @JavascriptInterface
@@ -350,11 +368,17 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
                         if (mUri != null) {
                             binding.webview.evaluateJavascript("isTextSelected()", selection -> {
                                 if (!Boolean.parseBoolean(selection)) {
-                                    if (getSupportActionBar().isShowing()) {
-                                        hideSystemUi();
+                                    // TODO: improve fullscreen mode
+                                    if (binding.toolbar.getVisibility() == View.VISIBLE) {
+                                        binding.toolbar.setVisibility(View.GONE);
                                     } else {
-                                        showSystemUi();
+                                        binding.toolbar.setVisibility(View.VISIBLE);
                                     }
+//                                    if (getSupportActionBar().isShowing()) {
+//                                        hideSystemUi();
+//                                    } else {
+//                                        showSystemUi();
+//                                    }
                                 }
                             });
                             return true;
@@ -363,18 +387,18 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
                     }
 
                     @Override
-                    public void onZoomIn(float value) {
-                        zoomIn(value, false);
+                    public void onScaleBegin() {
+                        scaleBegin();
                     }
 
                     @Override
-                    public void onZoomOut(float value) {
-                        zoomOut(value, false);
+                    public void onScale(float ratio, float focusX, float focusY) {
+                        scale(ratio, focusX, focusY);
                     }
 
                     @Override
-                    public void onZoomEnd() {
-                        zoomEnd();
+                    public void onScaleEnd() {
+                        scaleEnd();
                     }
                 });
 
@@ -410,8 +434,8 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
                 mUri = savedInstanceState.getParcelable(STATE_URI, Uri.class);
             }
             mPage = savedInstanceState.getInt(STATE_PAGE);
-            mZoomRatio = savedInstanceState.getFloat(STATE_ZOOM_RATIO);
-            mDocumentOrientationDegrees = savedInstanceState.getInt(STATE_DOCUMENT_ORIENTATION_DEGREES);
+            mScale = savedInstanceState.getFloat(STATE_SCALE);
+            mRotation = savedInstanceState.getInt(STATE_ROTATION);
             mEncryptedDocumentPassword = savedInstanceState.getString(STATE_ENCRYPTED_DOCUMENT_PASSWORD);
         }
 
@@ -528,16 +552,20 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         binding.webview.evaluateJavascript("loadDocument()", null);
     }
 
-    private void renderPage(final int zoom) {
-        binding.webview.evaluateJavascript("onRenderPage(" + zoom + ")", null);
+    private void renderPage() {
+        renderPage(-1);
     }
 
-    private void documentOrientationChanged(final int orientationDegreesOffset) {
-        mDocumentOrientationDegrees = (mDocumentOrientationDegrees + orientationDegreesOffset) % 360;
-        if (mDocumentOrientationDegrees < 0) {
-            mDocumentOrientationDegrees += 360;
+    private void renderPage(final int scaleMode) {
+        binding.webview.evaluateJavascript("onRenderPage(" + scaleMode + ")", null);
+    }
+
+    private void rotationChanged(final int rotationOffset) {
+        mRotation = (mRotation + rotationOffset) % 360;
+        if (mRotation < 0) {
+            mRotation += 360;
         }
-        renderPage(0);
+        renderPage();
     }
 
     private void openDocument() {
@@ -559,24 +587,26 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         }
     }
 
-    private void zoomIn(float value, boolean end) {
-        if (mZoomRatio < MAX_ZOOM_RATIO) {
-            mZoomRatio = Math.min(mZoomRatio + value, MAX_ZOOM_RATIO);
-            renderPage(end ? 1 : 2);
-            invalidateOptionsMenu();
-        }
+    private void scaleBegin() {
+        renderPage(0);
     }
 
-    private void zoomOut(float value, boolean end) {
-        if (mZoomRatio > MIN_ZOOM_RATIO) {
-            mZoomRatio = Math.max(mZoomRatio - value, MIN_ZOOM_RATIO);
-            renderPage(end ? 1 : 2);
-            invalidateOptionsMenu();
+    private void scale(float ratio, float focusX, float focusY) {
+        float newScale = RangesKt.coerceIn(mScale * ratio, MIN_SCALE, MAX_SCALE);
+        if (newScale == mScale) {
+            return;
         }
-    }
 
-    private void zoomEnd() {
+        mScale = newScale;
+        mScaleFocusX = focusX;
+        mScaleFocusY = focusY;
+
         renderPage(1);
+        invalidateOptionsMenu();
+    }
+
+    private void scaleEnd() {
+        renderPage(2);
     }
 
     private static void enableDisableMenuItem(MenuItem item, boolean enable) {
@@ -592,7 +622,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     public void onJumpToPageInDocument(final int selected_page) {
         if (selected_page >= 1 && selected_page <= mNumPages && mPage != selected_page) {
             mPage = selected_page;
-            renderPage(0);
+            renderPage();
             showPageNumber();
             invalidateOptionsMenu();
         }
@@ -613,8 +643,8 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         super.onSaveInstanceState(savedInstanceState);
         savedInstanceState.putParcelable(STATE_URI, mUri);
         savedInstanceState.putInt(STATE_PAGE, mPage);
-        savedInstanceState.putFloat(STATE_ZOOM_RATIO, mZoomRatio);
-        savedInstanceState.putInt(STATE_DOCUMENT_ORIENTATION_DEGREES, mDocumentOrientationDegrees);
+        savedInstanceState.putFloat(STATE_SCALE, mScale);
+        savedInstanceState.putInt(STATE_ROTATION, mRotation);
         savedInstanceState.putString(STATE_ENCRYPTED_DOCUMENT_PASSWORD, mEncryptedDocumentPassword);
     }
 
@@ -695,10 +725,10 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
             openDocument();
             return true;
         } else if (itemId == R.id.action_rotate_clockwise) {
-            documentOrientationChanged(90);
+            rotationChanged(90);
             return true;
         } else if (itemId == R.id.action_rotate_counterclockwise) {
-            documentOrientationChanged(-90);
+            rotationChanged(-90);
             return true;
         } else if (itemId == R.id.action_view_document_properties) {
             DocumentPropertiesFragment

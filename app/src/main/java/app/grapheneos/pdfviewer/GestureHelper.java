@@ -2,22 +2,26 @@ package app.grapheneos.pdfviewer;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+
+import androidx.annotation.NonNull;
 
 /*
     The GestureHelper present a simple gesture api for the PdfViewer
 */
 
 class GestureHelper {
+    private final static String TAG = "GestureHelper";
+
     public interface GestureListener {
         boolean onTapUp();
-        // Can be replaced with ratio when supported
-        void onZoomIn(float value);
-        void onZoomOut(float value);
-        void onZoomEnd();
+        void onScaleBegin();
+        void onScale(float ratio, float focusX, float focusY);
+        void onScaleEnd();
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -33,36 +37,21 @@ class GestureHelper {
 
         final ScaleGestureDetector scaleDetector = new ScaleGestureDetector(context,
                 new ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                    final float SPAN_RATIO = 600;
-                    float initialSpan;
-                    float prevNbStep;
-
                     @Override
-                    public boolean onScaleBegin(ScaleGestureDetector detector) {
-                        initialSpan = detector.getCurrentSpan();
-                        prevNbStep = 0;
+                    public boolean onScaleBegin(@NonNull ScaleGestureDetector detector) {
+                        listener.onScaleBegin();
                         return true;
                     }
 
                     @Override
-                    public boolean onScale(ScaleGestureDetector detector) {
-                        float spanDiff = initialSpan - detector.getCurrentSpan();
-                        float curNbStep = spanDiff / SPAN_RATIO;
-
-                        float stepDiff = curNbStep - prevNbStep;
-                        if (stepDiff > 0) {
-                            listener.onZoomOut(stepDiff);
-                        } else {
-                            listener.onZoomIn(Math.abs(stepDiff));
-                        }
-                        prevNbStep = curNbStep;
-
+                    public boolean onScale(@NonNull ScaleGestureDetector detector) {
+                        listener.onScale(detector.getScaleFactor(), detector.getFocusX(), detector.getFocusY());
                         return true;
                     }
 
                     @Override
-                    public void onScaleEnd(ScaleGestureDetector detector) {
-                        listener.onZoomEnd();
+                    public void onScaleEnd(@NonNull ScaleGestureDetector detector) {
+                        listener.onScaleEnd();
                     }
                 });
 

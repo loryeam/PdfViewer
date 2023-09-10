@@ -1,3 +1,7 @@
+:root {
+    --viewer-padding: 0px;
+}
+
 html,
 body {
     height: 100%;
@@ -10,38 +14,38 @@ canvas {
 }
 
 body {
-    background-color: #c0c0c0;
+    background-color: #3b3b3b;
 }
 
-#container {
-    --scale-factor: 1;
-
-    width: 100%;
+.outerContainer {
     height: 100%;
+    /* width: 100%; */
     display: grid;
     place-items: center;
 }
 
-#container canvas,
-#container .textLayer {
-    /* overlay child elements on top of each other */
+.outerContainer .pdfViewer {
     grid-row-start: 1;
     grid-column-start: 1;
+    padding: var(--viewer-padding);
 }
 
-canvas {
-    display: inline-block;
-    position: relative;
+.pdfViewer {
+    --scale-factor: 1;
+}
+
+.page {
+    padding: 8px;
 }
 
 [data-main-rotation="90"] {
-    transform: rotate(90deg);
+    transform: rotate(90deg) translateY(-100%);
 }
 
 [data-main-rotation="180"] {
-    transform: rotate(180deg);
+    transform: rotate(180deg) translate(-100%, -100%);
 }
 
 [data-main-rotation="270"] {
-    transform: rotate(270deg);
+    transform: rotate(270deg) translateX(-100%);
 }

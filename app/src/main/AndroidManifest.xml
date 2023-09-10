@@ -8,6 +8,7 @@
             android:label="@string/app_name"
             android:theme="@style/AppTheme">
         <activity android:name=".PdfViewer"
+                android:configChanges="orientation|screenSize"
                 android:documentLaunchMode="always"
                 android:exported="true">
             <intent-filter>

@@ -35,6 +35,13 @@
         ],
         "no-var": [
             "error"
+        ],
+        "no-trailing-spaces": [
+            "error"
+        ],
+        "comma-dangle": [
+            "error",
+            "always-multiline"
         ]
     },
     "globals": {

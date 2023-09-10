@@ -6,7 +6,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
-private val systemBars = WindowInsetsCompat.Type.statusBars()
+private val systemBars = WindowInsetsCompat.Type.systemBars()
 
 fun View.hideSystemUi(window: Window) {
     val controller = WindowCompat.getInsetsController(window, this)
