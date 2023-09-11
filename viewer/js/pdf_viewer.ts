@@ -57,8 +57,8 @@ export class PdfViewer {
     private readonly container;
     private readonly viewer;
     private readonly eventBus;
-    private readonly linkService: IPDFLinkService;
-    private readonly maxCanvasPixels: number;
+    private readonly linkService;
+    private readonly maxCanvasPixels;
 
     private state = DEFAULT_STATE();
 
