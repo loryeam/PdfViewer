@@ -10,6 +10,7 @@ export interface PdfPageViewOptions {
     container: HTMLDivElement;
     page: PDFPageProxy;
     linkService: IPDFLinkService;
+    maxCanvasPixels: number;
 }
 
 interface PdfPageViewRenderOptions {
@@ -36,13 +37,20 @@ export class PdfPageView {
     private readonly container;
     private readonly page;
     private readonly linkService;
+    private readonly maxCanvasPixels;
 
     private state = DEFAULT_STATE();
 
-    constructor(options: PdfPageViewOptions) {
-        this.container = options.container;
-        this.page = options.page;
-        this.linkService = options.linkService;
+    constructor({
+        container,
+        page,
+        linkService,
+        maxCanvasPixels,
+    }: PdfPageViewOptions) {
+        this.container = container;
+        this.page = page;
+        this.linkService = linkService;
+        this.maxCanvasPixels = maxCanvasPixels;
     }
 
     async render({
@@ -63,7 +71,10 @@ export class PdfPageView {
             this.state.div = div;
 
             const layers = this.state.layers;
-            layers.push(new CanvasLayer({ container: div }));
+            layers.push(new CanvasLayer({
+                container: div,
+                maxCanvasPixels: this.maxCanvasPixels,
+            }));
             layers.push(new TextLayer({ container: div }));
             layers.push(new AnnotationLayer({
                 container: div,

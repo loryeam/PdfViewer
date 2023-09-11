@@ -11,6 +11,7 @@ export interface PdfViewerOptions {
     container: HTMLDivElement;
     eventBus: EventBus;
     linkService?: IPDFLinkService;
+    maxCanvasPixels?: number;
 }
 
 export interface ScrollPageIntoViewParameters {
@@ -57,6 +58,7 @@ export class PdfViewer {
     private readonly viewer;
     private readonly eventBus;
     private readonly linkService: IPDFLinkService;
+    private readonly maxCanvasPixels: number;
 
     private state = DEFAULT_STATE();
 
@@ -128,14 +130,20 @@ export class PdfViewer {
         this.setRotation(value);
     }
 
-    constructor(options: PdfViewerOptions) {
-        this.container = options.container;
+    constructor({
+        container,
+        eventBus,
+        linkService = new SimpleLinkService(),
+        maxCanvasPixels = channel.getMaxCanvasPixels(),
+    }: PdfViewerOptions) {
+        this.container = container;
         this.viewer = document.createElement("div");
         this.viewer.className = "pdfViewer";
-        this.container.appendChild(this.viewer);
+        container.appendChild(this.viewer);
 
-        this.eventBus = options.eventBus;
-        this.linkService = options.linkService ?? new SimpleLinkService();
+        this.eventBus = eventBus;
+        this.linkService = linkService;
+        this.maxCanvasPixels = maxCanvasPixels;
     }
 
     async setDocument(pdfDocument: PDFDocumentProxy) {
@@ -156,6 +164,7 @@ export class PdfViewer {
                 container: this.viewer,
                 page: await pdfDocument.getPage(i),
                 linkService: this.linkService,
+                maxCanvasPixels: this.maxCanvasPixels,
             });
             this.state.pageViews.push(pageView);
         }

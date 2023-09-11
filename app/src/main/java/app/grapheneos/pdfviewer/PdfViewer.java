@@ -67,6 +67,7 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
     private static final String STATE_ENCRYPTED_DOCUMENT_PASSWORD = "encrypted_document_password";
     private static final String KEY_PROPERTIES = "properties";
     private static final int MIN_WEBVIEW_RELEASE = 92;
+    private static final int MAX_CANVAS_PIXELS = 12_000_000; // 4000x3000
 
     private static final String CONTENT_SECURITY_POLICY =
         "default-src 'none'; " +
@@ -251,6 +252,11 @@ public class PdfViewer extends AppCompatActivity implements LoaderManager.Loader
         @JavascriptInterface
         public String getPassword() {
             return mEncryptedDocumentPassword != null ? mEncryptedDocumentPassword : "";
+        }
+
+        @JavascriptInterface
+        public int getMaxCanvasPixels() {
+            return MAX_CANVAS_PIXELS;
         }
     }
 

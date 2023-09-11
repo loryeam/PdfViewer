@@ -3,38 +3,38 @@ import { Layer } from "../core";
 import { Log } from "../log";
 import { setElemSizeFromPage } from "../utils";
 
-const MAX_RESOLUTION = 12_000_000; // 4000x3000
-
 const TAG = "CanvasLayer";
 
 export class CanvasLayer implements Layer {
     private readonly div;
+    private readonly maxCanvasPixels;
 
     private canvas?: HTMLCanvasElement;
     private renderTask?: RenderTask;
 
-    constructor(options: { container: HTMLDivElement }) {
+    constructor(options: { container: HTMLDivElement, maxCanvasPixels: number }) {
         const div = document.createElement("div");
         div.className = "canvasLayer";
         options.container.appendChild(div);
         this.div = div;
+        this.maxCanvasPixels = options.maxCanvasPixels;
     }
 
     async render(page: PDFPageProxy, viewport: PageViewport) {
         const ratio = globalThis.devicePixelRatio;
         const height = viewport.height * ratio;
         const width = viewport.width * ratio;
-        const resolution = height * width;
+        const canvasPixels = height * width;
 
         let newViewport = viewport;
 
         // Limit resolution to prevent high memory usage.
-        if (resolution > MAX_RESOLUTION) {
+        if (canvasPixels > this.maxCanvasPixels) {
             Log.w(TAG, `drawing page "${page.pageNumber}" with reduced resolution`);
             // There are artifacts in HTML canvas when a viewport with high
             // scale is used to render page on the canvas. So, we create a new
             // viewport with lower scale.
-            const scaleAdjustment = Math.sqrt(MAX_RESOLUTION / resolution);
+            const scaleAdjustment = Math.sqrt(this.maxCanvasPixels / canvasPixels);
             newViewport = page.getViewport({
                 scale: viewport.scale * scaleAdjustment,
                 rotation: viewport.rotation,

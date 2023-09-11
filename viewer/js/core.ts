@@ -16,6 +16,7 @@ export interface Channel {
     invalidPassword(): void;
     onLoaded(): void;
     getPassword(): string;
+    getMaxCanvasPixels(): number;
 }
 
 export interface Layer {
