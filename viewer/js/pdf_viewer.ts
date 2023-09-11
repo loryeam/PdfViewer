@@ -324,7 +324,7 @@ export class PdfViewer {
         await pageView.render({
             rotation: state.rotation,
             scale: state.scale,
-            useCached,
+            useCached: useCached && !invalidateCache,
             attachToContainer: !preRender,
         });
 
